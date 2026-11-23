@@ -26,15 +26,32 @@ jobs:
       - name: Create Android project
         run: npx cap add android
 
+      - name: Put our app icons
+        run: cp -r icons/res/* android/app/src/main/res/
+
       - name: Copy web files into the app
         run: npx cap sync android
 
-      - name: Build test APK
+      - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
+
+      - name: Sign APK with our key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          "$BT/zipalign" -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks release.keystore --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD --out bus-release.apk aligned.apk
+          "$BT/apksigner" verify bus-release.apk
 
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: bus-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: bus-release-apk
+          path: bus-release.apk
