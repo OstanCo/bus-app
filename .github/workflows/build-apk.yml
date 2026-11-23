@@ -26,6 +26,13 @@ jobs:
       - name: Create Android project
         run: npx cap add android
 
+      - name: Set version number (grows with every build)
+        run: |
+          N=${{ github.run_number }}
+          sed -i -E "s/versionCode[ =]+[0-9]+/versionCode $N/" android/app/build.gradle
+          sed -i -E "s/versionName[ =]+\"[^\"]*\"/versionName \"1.0.$N\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+
       - name: Put our app icons
         run: cp -r icons/res/* android/app/src/main/res/
 
